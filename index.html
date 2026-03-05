@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>รายการขายมือถือ</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- QuaggaJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap');
+
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+
+        @keyframes spinner {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden-section {
+            display: none !important;
+        }
+
+        #scanner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 60;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 640px;
+            height: 300px;
+            background: #000;
+            overflow: hidden;
+            border-radius: 8px;
+            border: 2px solid #3b82f6;
+            position: relative;
+        }
+
+        #reader video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #reader::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 10%;
+            right: 10%;
+            height: 2px;
+            background: red;
+            box-shadow: 0 0 4px red;
+            z-index: 10;
+        }
+
+        #reader canvas {
+            display: none;
+        }
+
+        /* Receipt Style */
+        .receipt-container {
+            font-family: 'Prompt', sans-serif;
+            background: #fff;
+            color: #333;
+        }
+
+        .receipt-header {
+            background-color: #f6fbf6;
+            color: #2e7d32;
+            padding: 15px;
+            border-bottom: 2px solid #e5e7eb;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .receipt-body {
+            padding: 20px;
+        }
+
+        .receipt-text-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .receipt-text-row .label {
+            color: #6b7280;
+        }
+
+        .receipt-text-row .value {
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .receipt-spec-box {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-size: 0.85rem;
+        }
+
+        .receipt-spec-box .title {
+            font-weight: bold;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .receipt-price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #d1d5db;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <div id="scanner-overlay">
+        <div class="text-white mb-2 text-lg font-bold">สแกน IMEI/Barcode</div>
+        <p class="text-gray-300 text-xs mb-4">ถือกล้องให้นิ่ง ให้เส้นสีแดงทับบาร์โค้ด</p>
+        <div id="reader"></div>
+
+        <!-- ปุ่มควบคุมกล้อง -->
+        <div class="flex gap-4 mt-6">
+            <button onclick="switchCamera()"
+                class="bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg font-bold active:scale-95 transition">
+                <i class="fas fa-sync-alt mr-2"></i> สลับกล้อง
+            </button>
+            <button onclick="stopScan()"
+                class="bg-red-600 text-white px-6 py-3 rounded-full shadow-lg font-bold active:scale-95 transition">
+                ปิดกล้อง
+            </button>
+        </div>
+    </div>
+
+    <!-- Login -->
+    <div id="loginSection" class="flex flex-col justify-center items-center h-full p-4 bg-white">
+        <div class="w-full max-w-sm text-center">
+            <div class="mb-8">
+                <div
+                    class="bg-blue-100 text-blue-600 p-4 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-3 text-3xl shadow-inner">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">บันทึกรายการขาย</h1>
+                <p class="text-sm text-gray-500">ระบบจัดการร้านมือถือ</p>
+            </div>
+            <div class="bg-gray-50 p-6 rounded-lg shadow-inner border border-gray-200">
+                <h2 class="text-lg font-bold text-blue-600 mb-4">เข้าสู่ระบบ</h2>
+                <div class="mb-4"><input type="text" id="loginUsername" placeholder="Username" inputmode="numeric"
+                        pattern="[0-9]*"
+                        onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()"
+                        class="shadow appearance-none border rounded w-full py-3 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div class="mb-6"><input type="password" id="loginPassword" placeholder="Password" inputmode="numeric"
+                        pattern="[0-9]*" onkeydown="if(event.key==='Enter') handleLogin()"
+                        class="shadow appearance-none border rounded w-full py-3 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <button onclick="handleLogin()" id="btnLogin"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">เข้าใช้งาน</button>
+                <p id="loginError" class="text-red-500 text-center mt-4 text-sm hidden"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div id="appSection" class="hidden-section flex flex-col h-full">
+        <header class="bg-blue-600 text-white p-4 shadow-md flex justify-between items-center z-10">
+            <div>
+                <h2 class="font-bold text-lg">Mobile Sales</h2>
+                <p class="text-xs text-blue-200" id="userDisplay">User: -</p>
+            </div>
+            <button onclick="logout()" class="text-sm bg-blue-800 px-3 py-1 rounded hover:bg-blue-900"><i
+                    class="fas fa-sign-out-alt"></i> ออก</button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 pb-24" id="mainContent">
+            <!-- Form -->
+            <div id="tabForm">
+                <div class="bg-white rounded-lg shadow p-4 mb-4">
+                    <h3 class="font-bold text-gray-700 mb-4 border-b pb-2"><i
+                            class="fas fa-plus-circle text-blue-500"></i> บันทึกการขาย</h3>
+                    <form id="salesForm" onsubmit="submitForm(event)">
+                        <input type="hidden" name="hand" value="1">
+
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div><label class="block text-xs text-gray-500">ยี่ห้อ <span
+                                        class="text-red-500">*</span></label><select id="brand" name="brand"
+                                    class="w-full border rounded p-2 text-sm bg-white" required></select></div>
+                            <div><label class="block text-xs text-gray-500">รุ่น <span
+                                        class="text-red-500">*</span></label><input type="text" id="model" name="model"
+                                    class="w-full border rounded p-2 text-sm" required></div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div><label class="block text-xs text-gray-500">RAM <span
+                                        class="text-red-500">*</span></label><input type="text" name="ram" id="ram"
+                                    class="w-full border rounded p-2 text-sm" required></div>
+                            <div><label class="block text-xs text-gray-500">ความจุ <span
+                                        class="text-red-500">*</span></label><input type="text" name="capacity"
+                                    id="capacity" class="w-full border rounded p-2 text-sm" required></div>
+                        </div>
+
+                        <!-- ช่องสี -->
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-500">สี <span class="text-red-500">*</span></label>
+                            <input type="text" name="color" id="color" class="w-full border rounded p-2 text-sm"
+                                required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-500">IMEI <span class="text-red-500">*</span></label>
+                            <div class="flex">
+                                <input type="text" id="imei" name="imei" class="w-full border rounded-l p-2 text-sm"
+                                    required>
+                                <button type="button" id="mainImeiScannerBtn" onclick="openScanner('imei')"
+                                    class="bg-gray-200 border border-l-0 rounded-r px-3 text-gray-600 hover:bg-gray-300"><i
+                                        class="fas fa-barcode"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div><label class="block text-xs text-gray-500">รูปแบบการขาย <span
+                                        class="text-red-500">*</span></label><select id="saleType" name="saleType"
+                                    class="w-full border rounded p-2 text-sm bg-white" required></select></div>
+                            <div><label class="block text-xs text-gray-500">ราคาขาย (บาท) <span
+                                        class="text-red-500">*</span></label><input type="number" id="price"
+                                    name="price"
+                                    class="w-full border rounded p-2 text-sm text-right font-bold text-green-600"
+                                    required></div>
+                        </div>
+
+                        <div class="mb-3" id="shopNameDiv">
+                            <label class="block text-xs text-gray-500">ชื่อร้านที่รับ (ถ้ามี)</label>
+                            <input type="text" id="shopName" name="shopName" class="w-full border rounded p-2 text-sm"
+                                placeholder="ระบุชื่อร้าน..">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="block text-xs text-gray-500">วันที่ขาย <span
+                                    class="text-red-500">*</span></label>
+                            <input type="date" name="saleDate" id="saleDate" class="w-full border rounded p-2 text-sm"
+                                required>
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-xs text-gray-500">รูปใบเสร็จ <span
+                                    class="text-red-500">*</span></label>
+                            <input type="file" id="receiptFile" accept="image/*"
+                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                required>
+                        </div>
+
+                        <button type="submit" id="btnSubmit"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded shadow-lg transition transform active:scale-95 flex justify-center items-center">
+                            <span>บันทึกข้อมูล</span>
+                            <div id="submitLoader"
+                                class="loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-5 w-5 ml-2 hidden">
+                            </div>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- History -->
+            <div id="tabHistory" class="hidden-section">
+                <div class="bg-white p-3 rounded shadow-sm mb-3 border border-gray-200">
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div><label class="text-xs text-gray-500">จาก</label><input type="date" id="histStartDate"
+                                class="w-full border rounded p-1 text-sm"></div>
+                        <div><label class="text-xs text-gray-500">ถึง</label><input type="date" id="histEndDate"
+                                class="w-full border rounded p-1 text-sm"></div>
+                    </div>
+                    <div id="histUserFilterDiv" class="hidden mb-2">
+                        <label class="text-xs text-gray-500">พนักงาน (Manager)</label>
+                        <select id="histUserFilter" class="w-full border rounded p-1 text-sm bg-gray-50">
+                            <option value="all">ทั้งหมด</option>
+                        </select>
+                    </div>
+                    <!-- ปุ่มค้นหาตามวันที่ (เดิม) -->
+                    <button onclick="loadHistory(false)"
+                        class="w-full bg-blue-500 text-white text-sm py-1 rounded hover:bg-blue-600 flex justify-center items-center gap-2 mb-2"><i
+                            class="fas fa-calendar-check"></i> ดูตามวันที่เลือก</button>
+                </div>
+
+                <label class="text-xs text-gray-500 font-bold ml-1">ค้นหาด่วน (IMEI/รุ่น)</label>
+                <div class="mb-3 flex gap-1">
+                    <!-- ช่องค้นหา -->
+                    <input type="text" id="searchInput" onkeyup="checkEnterKey(event)"
+                        placeholder="พิมพ์ หรือสแกน IMEI..."
+                        class="w-full p-2 border rounded text-sm shadow-sm border-blue-300 bg-blue-50">
+                    <!-- ปุ่มสแกน -->
+                    <button type="button" onclick="openScanner('searchInput')"
+                        class="bg-gray-200 border rounded px-3 text-gray-600 hover:bg-gray-300"><i
+                            class="fas fa-barcode"></i></button>
+                    <!-- ปุ่มค้นหาทั้งระบบ -->
+                    <button type="button" onclick="loadHistory(true)"
+                        class="bg-yellow-500 text-white border rounded px-4 text-sm font-bold shadow hover:bg-yellow-600 whitespace-nowrap"><i
+                            class="fas fa-search"></i> ค้นหาทั้งระบบ</button>
+                </div>
+
+                <div id="historyList" class="space-y-3 pb-10"></div>
+            </div>
+
+            <!-- Summary -->
+            <div id="tabSummary" class="hidden-section">
+                <div class="bg-white p-3 rounded shadow mb-4">
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div><label class="text-xs text-gray-500">ตั้งแต่วันที่</label><input type="date"
+                                id="sumStartDate" class="w-full border rounded p-1 text-sm"></div>
+                        <div><label class="text-xs text-gray-500">ถึงวันที่</label><input type="date" id="sumEndDate"
+                                class="w-full border rounded p-1 text-sm"></div>
+                    </div>
+                    <div id="managerFilterDiv" class="mb-3 hidden">
+                        <label class="text-xs text-gray-500">เลือกพนักงาน (Manager)</label>
+                        <select id="sumUserFilter" class="w-full border rounded p-1 text-sm bg-gray-50">
+                            <option value="all">ทั้งหมด</option>
+                        </select>
+                    </div>
+                    <button onclick="loadSummary()"
+                        class="w-full bg-blue-600 text-white text-sm py-2 rounded hover:bg-blue-700"><i
+                            class="fas fa-search"></i> ประมวลผล</button>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow">
+                        <div class="text-xs opacity-80">จำนวนเครื่อง</div>
+                        <div class="text-2xl font-bold" id="sumQty">0</div>
+                        <div class="text-xs text-right">เครื่อง</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-3 text-white shadow">
+                        <div class="text-xs opacity-80">ยอดขายรวม</div>
+                        <div class="text-2xl font-bold" id="sumTotal">0</div>
+                        <div class="text-xs text-right">บาท</div>
+                    </div>
+                </div>
+                <div class="bg-white rounded shadow p-3">
+                    <h4 class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">ยอดขายแยกตามยี่ห้อ</h4>
+                    <div id="brandStatsList" class="space-y-2 text-sm">
+                        <div class="text-center text-gray-400 text-xs py-4">กรุณากดประมวลผล</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <nav class="bg-white border-t flex justify-around py-2 safe-area-pb z-10">
+            <button onclick="switchTab('tabForm')"
+                class="nav-btn active flex flex-col items-center text-blue-600 w-full"><i
+                    class="fas fa-edit text-xl mb-1"></i><span class="text-xs">บันทึก</span></button>
+            <button onclick="switchTab('tabHistory')"
+                class="nav-btn flex flex-col items-center text-gray-400 w-full hover:text-blue-500"><i
+                    class="fas fa-list text-xl mb-1"></i><span class="text-xs">ประวัติ</span></button>
+            <button onclick="switchTab('tabSummary')"
+                class="nav-btn flex flex-col items-center text-gray-400 w-full hover:text-blue-500"><i
+                    class="fas fa-chart-pie text-xl mb-1"></i><span class="text-xs">สรุป</span></button>
+        </nav>
+    </div>
+
+    <!-- Digital Receipt Modal -->
+    <div id="receiptModal"
+        class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex justify-center items-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[12px] shadow-2xl relative receipt-container overflow-hidden">
+            <div class="receipt-header">
+                <div class="font-bold text-[1.1rem] flex items-center">
+                    <i class="fas fa-receipt mr-2"></i> ใบเสร็จการขาย
+                </div>
+                <button onclick="closeReceipt()"
+                    class="bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                    &times;
+                </button>
+            </div>
+            <div class="receipt-body">
+                <div class="text-center mb-5">
+                    <h2 class="text-xl font-bold text-gray-800">KP Shop</h2>
+                    <div class="text-sm text-gray-500">ใบเสร็จดิจิทัล</div>
+                    <div class="text-xs text-gray-400 mt-1" id="rec_number">เลขที่: SALE-XXXXX</div>
+                </div>
+
+                <div class="space-y-1 border-b border-gray-100 pb-3">
+                    <div class="receipt-text-row">
+                        <span class="label">วันที่ขาย:</span>
+                        <span class="value" id="rec_date">-</span>
+                    </div>
+                    <div class="receipt-text-row">
+                        <span class="label">พนักงานขาย:</span>
+                        <span class="value" id="rec_seller">-</span>
+                    </div>
+                    <div class="receipt-text-row">
+                        <span class="label">สาขา:</span>
+                        <span class="value" id="rec_branch">-</span>
+                    </div>
+                </div>
+
+                <div class="receipt-spec-box text-gray-700">
+                    <div class="title" id="rec_product_name">-</div>
+                    <div class="text-gray-500">สเปก: <span id="rec_spec">-</span></div>
+                    <div class="text-gray-500">IMEI: <span id="rec_imei">-</span></div>
+                </div>
+
+                <div class="receipt-text-row">
+                    <span class="label">รูปแบบการขาย:</span>
+                    <span class="value" id="rec_sale_type">-</span>
+                </div>
+
+                <div class="receipt-price-row">
+                    <span class="font-bold text-gray-800 text-lg">ราคาขาย:</span>
+                    <span class="font-bold text-red-600 text-2xl" id="rec_price">฿0</span>
+                </div>
+
+                <div class="receipt-footer">
+                    ขอบคุณที่ใช้บริการ KP Shop<br>
+                    <span
+                        class="text-red-500 font-bold mt-2 block bg-red-50 py-1 rounded">กรุณาแคปหน้าจอนี้เก็บไว้เป็นหลักฐานการขาย</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 hidden flex justify-center items-center p-4">
+        <div
+            class="bg-white w-full max-w-sm rounded-[12px] shadow-2xl relative receipt-container overflow-hidden max-h-[95vh] overflow-y-auto">
+            <div class="receipt-header">
+                <div class="font-bold text-[1.1rem] flex items-center text-blue-600" id="d_header_title">
+                    <i class="fas fa-info-circle mr-2"></i> รายละเอียดการขาย
+                </div>
+                <button onclick="closeDetail()"
+                    class="bg-gray-200 text-gray-600 hover:text-gray-800 rounded-full w-8 h-8 flex items-center justify-center font-bold">
+                    &times;
+                </button>
+            </div>
+
+            <div class="receipt-body">
+                <div id="viewMode">
+                    <div class="space-y-1 border-b border-gray-100 pb-3">
+                        <div class="receipt-text-row">
+                            <span class="label">วันที่ขาย:</span>
+                            <span class="value" id="d_date"></span>
+                        </div>
+                        <div class="receipt-text-row">
+                            <span class="label">พนักงาน:</span>
+                            <span class="value" id="d_seller"></span>
+                        </div>
+                    </div>
+
+                    <div class="receipt-spec-box text-gray-700">
+                        <div class="grid grid-cols-2 gap-3 mb-2">
+                            <div><span class="text-gray-500 block text-[0.75rem]">ยี่ห้อ:</span> <strong id="d_brand"
+                                    class="text-sm"></strong></div>
+                            <div><span class="text-gray-500 block text-[0.75rem]">รุ่น:</span> <strong id="d_model"
+                                    class="text-sm"></strong></div>
+                            <div><span class="text-gray-500 block text-[0.75rem]">ความจุ:</span> <strong id="d_capacity"
+                                    class="text-sm"></strong></div>
+                            <div><span class="text-gray-500 block text-[0.75rem]">สี:</span> <strong id="d_color"
+                                    class="text-sm"></strong></div>
+                        </div>
+                        <div class="pt-2 border-t border-gray-200">
+                            <span class="text-gray-500 text-[0.75rem]">IMEI:</span>
+                            <div id="d_imei"
+                                class="font-mono bg-white border border-gray-300 p-1.5 rounded mt-1 text-sm text-gray-800 break-all">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 border-b border-gray-100 pb-4 mb-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="label text-gray-500">ราคา:</span>
+                            <span class="font-bold text-green-600 text-[1.4rem]" id="d_price"></span>
+                        </div>
+                        <div class="receipt-text-row">
+                            <span class="label">รูปแบบ:</span>
+                            <span class="value" id="d_saleType"></span>
+                        </div>
+                        <div class="receipt-text-row">
+                            <span class="label">ร้านรับ:</span>
+                            <span class="value" id="d_shopName"></span>
+                        </div>
+                    </div>
+
+                    <div id="d_receiptSection" class="text-center hidden mb-4">
+                        <a id="d_receiptLink" href="#" target="_blank"
+                            class="inline-block bg-blue-50 text-blue-600 px-6 py-2 rounded border border-blue-200 hover:bg-blue-100 font-bold text-sm">
+                            <i class="fas fa-image mr-2"></i> ดูรูปใบเสร็จ
+                        </a>
+                    </div>
+
+                    <div id="managerControls" class="flex space-x-3 hidden">
+                        <button onclick="enableEdit()"
+                            class="flex-1 bg-yellow-500 text-white py-2.5 rounded shadow hover:bg-yellow-600 font-bold text-sm">แก้ไข</button>
+                        <button onclick="confirmDelete()"
+                            class="flex-1 bg-red-500 text-white py-2.5 rounded shadow hover:bg-red-600 font-bold text-sm">ลบ</button>
+                    </div>
+                </div>
+
+                <div id="editMode" class="hidden">
+                    <form id="editForm" onsubmit="submitEdit(event)" class="space-y-3 text-sm">
+                        <input type="hidden" id="e_rowIndex">
+                        <div><label class="text-xs text-gray-500">วันที่</label><input type="date" id="e_date"
+                                class="w-full border rounded p-2 bg-gray-50"></div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="text-xs text-gray-500">ยี่ห้อ</label><select id="e_brand"
+                                    class="w-full border rounded p-2"></select></div>
+                            <input type="hidden" id="e_hand" value="1">
+                        </div>
+                        <div><label class="text-xs text-gray-500">รุ่น</label><input type="text" id="e_model"
+                                class="w-full border rounded p-2"></div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="text-xs text-gray-500">RAM</label><input type="text" id="e_ram"
+                                    class="w-full border rounded p-2"></div>
+                            <div><label class="text-xs text-gray-500">ความจุ</label><input type="text" id="e_capacity"
+                                    class="w-full border rounded p-2"></div>
+                        </div>
+                        <div><label class="text-xs text-gray-500">สี</label><input type="text" id="e_color"
+                                class="w-full border rounded p-2"></div>
+                        <div><label class="text-xs text-gray-500">IMEI</label><input type="text" id="e_imei"
+                                class="w-full border rounded p-2 font-mono"></div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="text-xs text-gray-500">รูปแบบ</label><select id="e_saleType"
+                                    class="w-full border rounded p-2"></select></div>
+                            <div><label class="text-xs text-gray-500">ราคา</label><input type="number" id="e_price"
+                                    class="w-full border rounded p-2 font-bold text-green-600"></div>
+                        </div>
+                        <div><label class="text-xs text-gray-500">ร้านรับ</label><input type="text" id="e_shopName"
+                                class="w-full border rounded p-2"></div>
+                        <div class="pt-4 flex space-x-3">
+                            <button type="button" onclick="cancelEdit()"
+                                class="flex-1 bg-gray-300 text-gray-700 py-2 rounded">ยกเลิก</button>
+                            <button type="submit"
+                                class="flex-1 bg-green-600 text-white py-2 rounded shadow hover:bg-green-700">บันทึก</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ส่วนเชื่อมต่อ API Google Apps Script ---
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbypd7JvaDX7JOKXuuiVrKZ4dsdVHjMXPaSP0c5_zGu1nBlnUdyXv0IZconKXfc8nzPCMA/exec'; // <-- นำ Web App URL ของ Google Apps Script มาวางตรงนี้
+
+        async function apiCall(action, params = {}) {
+            const body = { action: action, ...params };
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(body)
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                return { status: 'error', message: 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์' };
+            }
+        }
+
+        let currentUser = null;
+        let stockData = [];
+        let currentScannerTarget = null;
+        let currentHistoryData = [];
+        let availableCameras = [];
+        let currentCameraIndex = 0;
+        let isQuaggaInitialized = false;
+
+        window.onload = function () {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const firstDayStr = todayStr.substring(0, 7) + '-01';
+            document.getElementById('saleDate').value = todayStr;
+            document.getElementById('sumStartDate').value = firstDayStr;
+            document.getElementById('sumEndDate').value = todayStr;
+            document.getElementById('histStartDate').value = firstDayStr;
+            document.getElementById('histEndDate').value = todayStr;
+        };
+
+        // --- Scanner Logic ---
+        function openScanner(targetInputId) {
+            currentScannerTarget = targetInputId;
+            document.getElementById('scanner-overlay').style.display = 'flex';
+            startScanner();
+        }
+
+        function startScanner(deviceId = null) {
+            if (isQuaggaInitialized) { try { Quagga.stop(); } catch (e) { console.warn(e); } }
+
+            let constraints = { width: { min: 640, ideal: 1280, max: 1920 }, height: { min: 480, ideal: 720, max: 1080 }, facingMode: "environment" };
+            if (deviceId) { delete constraints.facingMode; constraints.deviceId = { exact: deviceId }; }
+
+            Quagga.init({
+                inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#reader'), constraints: constraints },
+                decoder: { readers: ["code_128_reader", "code_39_reader", "ean_reader", "upc_reader"] },
+                locate: true
+            }, function (err) {
+                if (err) {
+                    console.error(err);
+                    if (deviceId) { Swal.fire('กล้องมีปัญหา', 'กลับไปใช้กล้องหลัก', 'warning'); startScanner(null); }
+                    else { Swal.fire('เปิดกล้องไม่สำเร็จ', 'กรุณาอนุญาตให้เข้าถึงกล้อง', 'error'); document.getElementById('scanner-overlay').style.display = 'none'; }
+                    return;
+                }
+                Quagga.start();
+                isQuaggaInitialized = true;
+                if (availableCameras.length === 0) { Quagga.CameraAccess.enumerateVideoDevices().then(devices => { availableCameras = devices; }).catch(e => console.error(e)); }
+            });
+            Quagga.offDetected(onScanSuccess);
+            Quagga.onDetected(onScanSuccess);
+        }
+
+        function switchCamera() {
+            if (availableCameras.length > 1) {
+                currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
+                startScanner(availableCameras[currentCameraIndex].deviceId);
+            } else { Swal.fire('แจ้งเตือน', 'ตรวจพบกล้องเพียงตัวเดียว', 'info'); }
+        }
+
+        function onScanSuccess(result) {
+            const code = result.codeResult.code;
+            if (code) {
+                document.getElementById(currentScannerTarget).value = code;
+                if (currentScannerTarget === 'searchInput') filterHistory(); // ถ้าสแกนหน้า History จะ Filter ทันที
+                stopScan();
+            }
+        }
+
+        function stopScan() {
+            if (isQuaggaInitialized) { try { Quagga.stop(); } catch (e) { } }
+            Quagga.offDetected(onScanSuccess);
+            document.getElementById('scanner-overlay').style.display = 'none';
+        }
+
+        // --- Logic ---
+        async function handleLogin() {
+            const u = document.getElementById('loginUsername').value;
+            const p = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('btnLogin');
+            btn.innerText = "กำลังตรวจสอบ..."; btn.disabled = true;
+
+            const res = await apiCall('loginUser', { username: u, password: p });
+            if (res.status === 'success') {
+                currentUser = res;
+                document.getElementById('loginSection').classList.add('hidden-section');
+                document.getElementById('loginSection').classList.remove('flex');
+                document.getElementById('appSection').classList.remove('hidden-section');
+                document.getElementById('appSection').classList.add('flex');
+                document.getElementById('userDisplay').innerText = `User: ${res.name} (${res.role})`;
+                if (res.role === 'Manager') { document.getElementById('managerFilterDiv').classList.remove('hidden'); document.getElementById('histUserFilterDiv').classList.remove('hidden'); }
+                loadInitialData(); loadHistory(false); // Load initial history (default period)
+            } else { document.getElementById('loginError').innerText = res.message; document.getElementById('loginError').classList.remove('hidden'); btn.innerText = "เข้าใช้งาน"; btn.disabled = false; }
+        }
+
+        function logout() {
+            currentUser = null; document.getElementById('salesForm').reset();
+            document.getElementById('loginUsername').value = ''; document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('appSection').classList.add('hidden-section'); document.getElementById('appSection').classList.remove('flex');
+            document.getElementById('loginSection').classList.remove('hidden-section'); document.getElementById('loginSection').classList.add('flex');
+            const btn = document.getElementById('btnLogin'); if (btn) { btn.innerText = "เข้าใช้งาน"; btn.disabled = false; }
+        }
+
+        async function loadInitialData() {
+            const data = await apiCall('getDropdownData');
+            if (data.status === 'error') return;
+            const brandSelect = document.getElementById('brand'); brandSelect.innerHTML = '<option value="">--เลือกยี่ห้อ--</option>';
+            data.brands.forEach(b => brandSelect.innerHTML += `<option value="${b}">${b}</option>`);
+            const typeSelect = document.getElementById('saleType'); typeSelect.innerHTML = '<option value="">--เลือกรูปแบบ--</option>';
+            data.saleTypes.forEach(t => typeSelect.innerHTML += `<option value="${t}">${t}</option>`);
+
+            const uFilters = [document.getElementById('sumUserFilter'), document.getElementById('histUserFilter')];
+            uFilters.forEach(sel => { sel.innerHTML = '<option value="all">ทั้งหมด</option>'; data.usersList.forEach(u => sel.innerHTML += `<option value="${u}">${u}</option>`); });
+        }
+
+        // --- Navigation ---
+        function switchTab(tabId) {
+            document.getElementById('tabForm').classList.add('hidden-section');
+            document.getElementById('tabHistory').classList.add('hidden-section');
+            document.getElementById('tabSummary').classList.add('hidden-section');
+            document.getElementById(tabId).classList.remove('hidden-section');
+            document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('text-blue-600'); btn.classList.add('text-gray-400'); });
+            event.currentTarget.classList.remove('text-gray-400'); event.currentTarget.classList.add('text-blue-600');
+            if (tabId === 'tabHistory') loadHistory(false);
+        }
+
+        // --- UPDATED: Load History with Search Support ---
+        async function loadHistory(isSearch = false) {
+            const listDiv = document.getElementById('historyList');
+            listDiv.innerHTML = '<div class="text-center py-4"><div class="loader mx-auto h-6 w-6 rounded-full border-2 border-blue-500"></div></div>';
+
+            const req = {
+                username: currentUser.name,
+                role: currentUser.role,
+                startDate: document.getElementById('histStartDate').value,
+                endDate: document.getElementById('histEndDate').value,
+                filterUser: document.getElementById('histUserFilter').value,
+                searchQuery: isSearch ? document.getElementById('searchInput').value : "" // ส่งคำค้นหาไปถ้าเป็นโหมดค้นหา
+            };
+
+            const data = await apiCall('getSalesHistory', { request: req });
+            listDiv.innerHTML = ''; currentHistoryData = data;
+            if (data.status === 'error') { listDiv.innerHTML = '<div class="text-center text-red-500 mt-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>'; return; }
+            if (data.length === 0) { listDiv.innerHTML = '<div class="text-center text-gray-400 mt-4">ไม่พบข้อมูล</div>'; return; }
+            data.forEach((item, index) => {
+                const card = `<div onclick="openDetail(${index})" class="bg-white p-3 rounded shadow border-l-4 border-blue-500 history-item cursor-pointer active:bg-blue-50 transition">
+                <div class="flex justify-between"><span class="font-bold text-gray-800">${item.brand} ${item.model}</span><span class="font-bold text-green-600">฿${Number(item.price).toLocaleString()}</span></div>
+                <div class="text-xs text-gray-500 mt-1 flex justify-between"><span><i class="far fa-calendar-alt"></i> ${item.date}</span><span><i class="fas fa-user"></i> ${item.seller}</span></div>
+                <div class="text-xs text-gray-400 mt-1 truncate">IMEI: ${item.imei}</div>
+            </div>`;
+                listDiv.innerHTML += card;
+            });
+        }
+
+        function checkEnterKey(e) {
+            // ถ้ากด Enter ให้ค้นหา Server
+            if (e.key === 'Enter') loadHistory(true);
+            else filterHistory(); // ถ้าพิมพ์ธรรมดาให้กรอง Local
+        }
+
+        function filterHistory() {
+            const filter = document.getElementById('searchInput').value.toUpperCase();
+            document.querySelectorAll('.history-item').forEach(item => { item.style.display = item.innerText.toUpperCase().includes(filter) ? "" : "none"; });
+        }
+
+        async function loadSummary() {
+            document.getElementById('sumQty').innerText = '...'; document.getElementById('sumTotal').innerText = '...';
+            document.getElementById('brandStatsList').innerHTML = '<div class="text-center py-4"><div class="loader mx-auto h-5 w-5 rounded-full border-2 border-blue-500"></div></div>';
+            const req = { role: currentUser.role, username: currentUser.name, startDate: document.getElementById('sumStartDate').value, endDate: document.getElementById('sumEndDate').value, filterUser: document.getElementById('sumUserFilter').value };
+
+            const res = await apiCall('getSummaryStats', { request: req });
+            if (res.status === 'error') { document.getElementById('brandStatsList').innerHTML = '<div class="text-center text-red-500 mt-4">เกิดข้อผิดพลาด</div>'; return; }
+
+            document.getElementById('sumQty').innerText = (res.totalQty || 0).toLocaleString();
+            document.getElementById('sumTotal').innerText = (res.totalAmount || 0).toLocaleString();
+            const listDiv = document.getElementById('brandStatsList'); listDiv.innerHTML = '';
+            const brands = res.brandStats ? Object.keys(res.brandStats) : [];
+            if (brands.length === 0) { listDiv.innerHTML = '<div class="text-center text-gray-400 text-xs">ไม่มีข้อมูล</div>'; }
+            else { brands.forEach(b => { const stat = res.brandStats[b]; listDiv.innerHTML += `<div class="flex justify-between items-center border-b border-gray-100 py-2 last:border-0"><div class="font-medium text-gray-700">${b}</div><div class="text-right"><div class="font-bold text-blue-600">${stat.qty} เครื่อง</div><div class="text-xs text-gray-400">฿${stat.amount.toLocaleString()}</div></div></div>`; }); }
+        }
+
+        // --- Handlers & Toggle ---
+
+        async function submitForm(e) {
+            e.preventDefault();
+
+            const form = document.getElementById('salesForm');
+
+            Swal.fire({ title: 'กำลังบันทึกข้อมูล...', html: 'กรุณารอสักครู่ ระบบกำลังประมวลผล', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            const btn = document.getElementById('btnSubmit'); const loader = document.getElementById('submitLoader');
+            btn.disabled = true; loader.classList.remove('hidden');
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: '2-digit', day: '2-digit' }) + ' ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const saleId = 'SALE-' + now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0') + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+
+            // Data for receipt preview
+            const receiptData = {
+                id: saleId,
+                date: dateStr,
+                seller: currentUser.name,
+                branch: currentUser.branch || '-',
+                productName: `${form.brand.value} ${form.model.value}`,
+                spec: `${form.ram.value ? form.ram.value + '/' : ''}${form.capacity.value} ${form.color.value}`,
+                imei: form.imei.value,
+                saleType: form.saleType.value,
+                price: form.price.value
+            };
+
+            const formData = {
+                seller: currentUser.name, brand: form.brand.value, hand: form.hand.value, model: form.model.value,
+                ram: form.ram.value, capacity: form.capacity.value, color: form.color.value, imei: form.imei.value,
+                saleType: form.saleType.value, shopName: form.shopName.value, price: form.price.value, saleDate: form.saleDate.value
+            };
+            const file = document.getElementById('receiptFile').files[0];
+            const callback = (res) => {
+                btn.disabled = false; loader.classList.add('hidden');
+                if (res.status === 'success') {
+                    Swal.close();
+                    form.reset(); document.getElementById('saleDate').value = new Date().toISOString().split('T')[0];
+                    showReceipt(receiptData);
+                } else { Swal.fire('เกิดข้อผิดพลาด', res.message, 'error'); }
+            };
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const res = await apiCall('saveSale', { formData: formData, fileData: { name: file.name, type: file.type, data: e.target.result.split(',')[1] } });
+                    callback(res);
+                };
+                reader.readAsDataURL(file);
+            }
+            else {
+                const res = await apiCall('saveSale', { formData: formData, fileData: null });
+                callback(res);
+            }
+        }
+
+        // --- Digital Receipt ---
+        function showReceipt(data) {
+            document.getElementById('rec_number').innerText = 'เลขที่: ' + data.id;
+            document.getElementById('rec_date').innerText = data.date;
+            document.getElementById('rec_seller').innerText = data.seller;
+            document.getElementById('rec_branch').innerText = data.branch;
+            document.getElementById('rec_product_name').innerText = data.productName;
+            document.getElementById('rec_spec').innerText = data.spec;
+            document.getElementById('rec_imei').innerText = data.imei;
+            document.getElementById('rec_sale_type').innerText = data.saleType;
+            document.getElementById('rec_price').innerText = '฿' + Number(data.price).toLocaleString();
+
+            document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        function closeReceipt() {
+            document.getElementById('receiptModal').classList.add('hidden');
+        }
+
+        // --- Detail/Edit ---
+        function openDetail(index) {
+            const item = currentHistoryData[index]; if (!item) return;
+            document.getElementById('d_date').innerText = item.date;
+            document.getElementById('d_seller').innerText = item.seller;
+            document.getElementById('d_brand').innerText = item.brand;
+            document.getElementById('d_model').innerText = item.model;
+            document.getElementById('d_capacity').innerText = `${item.ram || '-'} / ${item.capacity || '-'}`;
+            document.getElementById('d_color').innerText = item.color || '-';
+            document.getElementById('d_imei').innerText = item.imei;
+            document.getElementById('d_price').innerText = `฿${Number(item.price).toLocaleString()}`;
+            document.getElementById('d_saleType').innerText = item.saleType;
+            document.getElementById('d_shopName').innerText = item.shopName == '-' ? 'ไม่มี' : item.shopName;
+            const receiptDiv = document.getElementById('d_receiptSection');
+            if (item.receipt && item.receipt.length > 5) { receiptDiv.classList.remove('hidden'); document.getElementById('d_receiptLink').href = item.receipt; } else { receiptDiv.classList.add('hidden'); }
+            if (currentUser.role === 'Manager') { document.getElementById('managerControls').classList.remove('hidden'); document.getElementById('e_rowIndex').value = item.rowIndex; } else { document.getElementById('managerControls').classList.add('hidden'); }
+            document.getElementById('viewMode').classList.remove('hidden'); document.getElementById('editMode').classList.add('hidden'); document.getElementById('detailModal').classList.remove('hidden');
+        }
+        function closeDetail() { document.getElementById('detailModal').classList.add('hidden'); }
+        function enableEdit() {
+            document.getElementById('d_header_title').innerHTML = '<i class="fas fa-edit mr-2"></i> แก้ไขการขาย';
+            const rowIndex = document.getElementById('e_rowIndex').value; const item = currentHistoryData.find(x => x.rowIndex == rowIndex); if (!item) return;
+            document.getElementById('e_brand').innerHTML = document.getElementById('brand').innerHTML;
+            document.getElementById('e_saleType').innerHTML = document.getElementById('saleType').innerHTML;
+            const parts = item.date.split('/'); if (parts.length === 3) { document.getElementById('e_date').value = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`; }
+            document.getElementById('e_brand').value = item.brand; document.getElementById('e_hand').value = item.hand; document.getElementById('e_model').value = item.model;
+            document.getElementById('e_ram').value = item.ram; document.getElementById('e_capacity').value = item.capacity; document.getElementById('e_color').value = item.color;
+            document.getElementById('e_imei').value = item.imei; document.getElementById('e_saleType').value = item.saleType; document.getElementById('e_price').value = item.price; document.getElementById('e_shopName').value = item.shopName;
+            document.getElementById('viewMode').classList.add('hidden'); document.getElementById('editMode').classList.remove('hidden');
+        }
+        function cancelEdit() {
+            document.getElementById('d_header_title').innerHTML = '<i class="fas fa-info-circle mr-2"></i> รายละเอียดการขาย';
+            document.getElementById('editMode').classList.add('hidden');
+            document.getElementById('viewMode').classList.remove('hidden');
+        }
+        async function submitEdit(e) {
+            e.preventDefault();
+            const formData = {
+                rowIndex: document.getElementById('e_rowIndex').value, editor: currentUser.name, saleDate: document.getElementById('e_date').value,
+                brand: document.getElementById('e_brand').value, hand: document.getElementById('e_hand').value, model: document.getElementById('e_model').value,
+                ram: document.getElementById('e_ram').value, capacity: document.getElementById('e_capacity').value, color: document.getElementById('e_color').value,
+                imei: document.getElementById('e_imei').value, saleType: document.getElementById('e_saleType').value, price: document.getElementById('e_price').value, shopName: document.getElementById('e_shopName').value
+            };
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const res = await apiCall('updateSale', { formData: formData });
+            if (res.status === 'success') { Swal.fire('แก้ไขสำเร็จ', '', 'success'); closeDetail(); loadHistory(); } else { Swal.fire('Error', res.message, 'error'); }
+        }
+        function confirmDelete() {
+            const rowIndex = document.getElementById('e_rowIndex').value;
+            Swal.fire({ title: 'ยืนยันการลบ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย' }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'กำลังลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const res = await apiCall('deleteSale', { rowIndex: rowIndex });
+                    if (res.status === 'success') {
+                        closeDetail(); loadHistory(); Swal.fire('ลบสำเร็จ', '', 'success');
+                    } else {
+                        Swal.fire('Error', res.message, 'error');
+                    }
+                }
+            })
+        }
+    </script>
+</body>
+
+</html>
