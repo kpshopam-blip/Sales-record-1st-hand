@@ -268,12 +268,21 @@
                         <div class="grid grid-cols-2 gap-3 mb-3">
                             <div><label class="block text-xs text-gray-500">รูปแบบการขาย <span
                                         class="text-red-500">*</span></label><select id="saleType" name="saleType"
-                                    class="w-full border rounded p-2 text-sm bg-white" required></select></div>
+                                    class="w-full border rounded p-2 text-sm bg-white"
+                                    onchange="checkSaleType('saleType', 'downPaymentDiv', 'downPayment')"
+                                    required></select></div>
                             <div><label class="block text-xs text-gray-500">ราคาขาย (บาท) <span
                                         class="text-red-500">*</span></label><input type="number" id="price"
                                     name="price"
                                     class="w-full border rounded p-2 text-sm text-right font-bold text-green-600"
                                     required></div>
+                        </div>
+
+                        <div class="mb-3 hidden" id="downPaymentDiv">
+                            <label class="block text-xs text-gray-500">เงินดาวน์ (บาท) <span
+                                    class="text-red-500">*</span></label>
+                            <input type="number" id="downPayment" name="downPayment"
+                                class="w-full border rounded p-2 text-sm text-right font-bold text-orange-600">
                         </div>
 
                         <div class="mb-3" id="shopNameDiv">
@@ -447,6 +456,16 @@
                     <span class="value" id="rec_sale_type">-</span>
                 </div>
 
+                <div class="receipt-text-row hidden" id="rec_down_payment_row">
+                    <span class="label">เงินดาวน์:</span>
+                    <span class="value text-orange-600" id="rec_down_payment">฿0</span>
+                </div>
+
+                <div class="receipt-text-row hidden" id="rec_financed_row">
+                    <span class="label">ยอดจัด:</span>
+                    <span class="value text-blue-600" id="rec_financed">฿0</span>
+                </div>
+
                 <div class="receipt-price-row">
                     <span class="font-bold text-gray-800 text-lg">ราคาขาย:</span>
                     <span class="font-bold text-red-600 text-2xl" id="rec_price">฿0</span>
@@ -512,6 +531,14 @@
                             <span class="label text-gray-500">ราคา:</span>
                             <span class="font-bold text-green-600 text-[1.4rem]" id="d_price"></span>
                         </div>
+                        <div class="receipt-text-row hidden" id="d_down_payment_row">
+                            <span class="label">เงินดาวน์:</span>
+                            <span class="value text-orange-600" id="d_down_payment"></span>
+                        </div>
+                        <div class="receipt-text-row hidden" id="d_financed_row">
+                            <span class="label">ยอดจัด:</span>
+                            <span class="value text-blue-600" id="d_financed"></span>
+                        </div>
                         <div class="receipt-text-row">
                             <span class="label">รูปแบบ:</span>
                             <span class="value" id="d_saleType"></span>
@@ -561,9 +588,16 @@
                                 class="w-full border rounded p-2 font-mono"></div>
                         <div class="grid grid-cols-2 gap-2">
                             <div><label class="text-xs text-gray-500">รูปแบบ</label><select id="e_saleType"
-                                    class="w-full border rounded p-2"></select></div>
+                                    class="w-full border rounded p-2"
+                                    onchange="checkSaleType('e_saleType', 'e_downPaymentDiv', 'e_downPayment')"></select>
+                            </div>
                             <div><label class="text-xs text-gray-500">ราคา</label><input type="number" id="e_price"
                                     class="w-full border rounded p-2 font-bold text-green-600"></div>
+                        </div>
+                        <div class="mb-2 hidden" id="e_downPaymentDiv">
+                            <label class="text-xs text-gray-500">เงินดาวน์</label>
+                            <input type="number" id="e_downPayment"
+                                class="w-full border rounded p-2 font-bold text-orange-600 text-right">
                         </div>
                         <div><label class="text-xs text-gray-500">ร้านรับ</label><input type="text" id="e_shopName"
                                 class="w-full border rounded p-2"></div>
@@ -779,6 +813,21 @@
 
         // --- Handlers & Toggle ---
 
+        // ตรวจสอบรูปแบบการขายและเงื่อนไขเงินดาวน์
+        function checkSaleType(selectId, divId, inputId) {
+            const saleType = document.getElementById(selectId).value;
+            const div = document.getElementById(divId);
+            const input = document.getElementById(inputId);
+            if (saleType === '' || saleType === 'ขายสด' || saleType === 'ส่งร้านพาร์ทเนอร์') {
+                div.classList.add('hidden');
+                input.required = false;
+                input.value = '';
+            } else {
+                div.classList.remove('hidden');
+                input.required = true;
+            }
+        }
+
         async function submitForm(e) {
             e.preventDefault();
 
@@ -802,13 +851,14 @@
                 spec: `${form.ram.value ? form.ram.value + '/' : ''}${form.capacity.value} ${form.color.value}`,
                 imei: form.imei.value,
                 saleType: form.saleType.value,
-                price: form.price.value
+                price: form.price.value,
+                downPayment: form.downPayment.value || 0
             };
 
             const formData = {
                 seller: currentUser.name, brand: form.brand.value, hand: form.hand.value, model: form.model.value,
                 ram: form.ram.value, capacity: form.capacity.value, color: form.color.value, imei: form.imei.value,
-                saleType: form.saleType.value, shopName: form.shopName.value, price: form.price.value, saleDate: form.saleDate.value
+                saleType: form.saleType.value, shopName: form.shopName.value, price: form.price.value, saleDate: form.saleDate.value, downPayment: form.downPayment.value || 0
             };
             const file = document.getElementById('receiptFile').files[0];
             const callback = (res) => {
@@ -846,6 +896,18 @@
             document.getElementById('rec_sale_type').innerText = data.saleType;
             document.getElementById('rec_price').innerText = '฿' + Number(data.price).toLocaleString();
 
+            const dpRow = document.getElementById('rec_down_payment_row');
+            const finRow = document.getElementById('rec_financed_row');
+            if (data.saleType && data.saleType !== 'ขายสด' && data.saleType !== 'ส่งร้านพาร์ทเนอร์' && data.downPayment > 0) {
+                dpRow.classList.remove('hidden');
+                finRow.classList.remove('hidden');
+                document.getElementById('rec_down_payment').innerText = '฿' + Number(data.downPayment).toLocaleString();
+                document.getElementById('rec_financed').innerText = '฿' + Number(data.price - data.downPayment).toLocaleString();
+            } else {
+                dpRow.classList.add('hidden');
+                finRow.classList.add('hidden');
+            }
+
             document.getElementById('receiptModal').classList.remove('hidden');
         }
 
@@ -865,6 +927,19 @@
             document.getElementById('d_imei').innerText = item.imei;
             document.getElementById('d_price').innerText = `฿${Number(item.price).toLocaleString()}`;
             document.getElementById('d_saleType').innerText = item.saleType;
+
+            const d_dpRow = document.getElementById('d_down_payment_row');
+            const d_finRow = document.getElementById('d_financed_row');
+            if (item.saleType && item.saleType !== 'ขายสด' && item.saleType !== 'ส่งร้านพาร์ทเนอร์' && item.downPayment > 0) {
+                d_dpRow.classList.remove('hidden');
+                d_finRow.classList.remove('hidden');
+                document.getElementById('d_down_payment').innerText = `฿${Number(item.downPayment).toLocaleString()}`;
+                document.getElementById('d_financed').innerText = `฿${Number(item.price - item.downPayment).toLocaleString()}`;
+            } else {
+                d_dpRow.classList.add('hidden');
+                d_finRow.classList.add('hidden');
+            }
+
             document.getElementById('d_shopName').innerText = item.shopName == '-' ? 'ไม่มี' : item.shopName;
             const receiptDiv = document.getElementById('d_receiptSection');
             if (item.receipt && item.receipt.length > 5) { receiptDiv.classList.remove('hidden'); document.getElementById('d_receiptLink').href = item.receipt; } else { receiptDiv.classList.add('hidden'); }
@@ -881,6 +956,8 @@
             document.getElementById('e_brand').value = item.brand; document.getElementById('e_hand').value = item.hand; document.getElementById('e_model').value = item.model;
             document.getElementById('e_ram').value = item.ram; document.getElementById('e_capacity').value = item.capacity; document.getElementById('e_color').value = item.color;
             document.getElementById('e_imei').value = item.imei; document.getElementById('e_saleType').value = item.saleType; document.getElementById('e_price').value = item.price; document.getElementById('e_shopName').value = item.shopName;
+            document.getElementById('e_downPayment').value = item.downPayment || '';
+            checkSaleType('e_saleType', 'e_downPaymentDiv', 'e_downPayment');
             document.getElementById('viewMode').classList.add('hidden'); document.getElementById('editMode').classList.remove('hidden');
         }
         function cancelEdit() {
@@ -894,7 +971,7 @@
                 rowIndex: document.getElementById('e_rowIndex').value, editor: currentUser.name, saleDate: document.getElementById('e_date').value,
                 brand: document.getElementById('e_brand').value, hand: document.getElementById('e_hand').value, model: document.getElementById('e_model').value,
                 ram: document.getElementById('e_ram').value, capacity: document.getElementById('e_capacity').value, color: document.getElementById('e_color').value,
-                imei: document.getElementById('e_imei').value, saleType: document.getElementById('e_saleType').value, price: document.getElementById('e_price').value, shopName: document.getElementById('e_shopName').value
+                imei: document.getElementById('e_imei').value, saleType: document.getElementById('e_saleType').value, price: document.getElementById('e_price').value, shopName: document.getElementById('e_shopName').value, downPayment: document.getElementById('e_downPayment').value || 0
             };
             Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
