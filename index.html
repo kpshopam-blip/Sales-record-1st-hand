@@ -534,28 +534,15 @@
                     </div>
 
                     <div class="receipt-spec-box text-gray-700">
-                        <div class="grid grid-cols-2 gap-3 mb-2">
-                            <div><span class="text-gray-500 block text-[0.75rem]">ยี่ห้อ:</span> <strong id="d_brand"
-                                    class="text-sm"></strong></div>
-                            <div><span class="text-gray-500 block text-[0.75rem]">รุ่น:</span> <strong id="d_model"
-                                    class="text-sm"></strong></div>
-                            <div><span class="text-gray-500 block text-[0.75rem]">ความจุ:</span> <strong id="d_capacity"
-                                    class="text-sm"></strong></div>
-                            <div><span class="text-gray-500 block text-[0.75rem]">สี:</span> <strong id="d_color"
-                                    class="text-sm"></strong></div>
-                        </div>
-                        <div class="pt-2 border-t border-gray-200">
-                            <span class="text-gray-500 text-[0.75rem]">IMEI:</span>
-                            <div id="d_imei"
-                                class="font-mono bg-white border border-gray-300 p-1.5 rounded mt-1 text-sm text-gray-800 break-all">
-                            </div>
-                        </div>
+                        <div class="title" id="d_product_name">-</div>
+                        <div class="text-gray-500">สเปก: <span id="d_spec">-</span></div>
+                        <div class="text-gray-500">IMEI: <span id="d_imei">-</span></div>
                     </div>
 
-                    <div class="space-y-2 border-b border-gray-100 pb-4 mb-4">
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="label text-gray-500">ราคา:</span>
-                            <span class="font-bold text-green-600 text-[1.4rem]" id="d_price"></span>
+                    <div class="space-y-1 pb-4 mb-4">
+                        <div class="receipt-text-row">
+                            <span class="label">รูปแบบการขาย:</span>
+                            <span class="value" id="d_saleType"></span>
                         </div>
                         <div class="receipt-text-row hidden" id="d_down_payment_row">
                             <span class="label">เงินดาวน์:</span>
@@ -566,12 +553,13 @@
                             <span class="value text-blue-600" id="d_financed"></span>
                         </div>
                         <div class="receipt-text-row">
-                            <span class="label">รูปแบบ:</span>
-                            <span class="value" id="d_saleType"></span>
-                        </div>
-                        <div class="receipt-text-row">
                             <span class="label">ร้านรับ:</span>
                             <span class="value" id="d_shopName"></span>
+                        </div>
+
+                        <div class="receipt-price-row">
+                            <span class="font-bold text-gray-800 text-lg">ราคาขาย:</span>
+                            <span class="font-bold text-green-600 text-2xl" id="d_price"></span>
                         </div>
                     </div>
 
@@ -960,10 +948,8 @@
             document.getElementById('d_seller').innerText = item.seller;
             document.getElementById('d_customerName').innerText = item.customerName || '-';
             document.getElementById('d_customerPhone').innerText = item.customerPhone || '-';
-            document.getElementById('d_brand').innerText = item.brand;
-            document.getElementById('d_model').innerText = item.model;
-            document.getElementById('d_capacity').innerText = `${item.ram || '-'} / ${item.capacity || '-'}`;
-            document.getElementById('d_color').innerText = item.color || '-';
+            document.getElementById('d_product_name').innerText = `${item.brand} ${item.model}`;
+            document.getElementById('d_spec').innerText = `${item.ram ? item.ram + '/' : ''}${item.capacity} ${item.color}`;
             document.getElementById('d_imei').innerText = item.imei;
             document.getElementById('d_price').innerText = `฿${Number(item.price).toLocaleString()}`;
             document.getElementById('d_saleType').innerText = item.saleType;
