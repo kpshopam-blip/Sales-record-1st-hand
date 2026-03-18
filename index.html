@@ -283,6 +283,16 @@
                                     class="text-red-500">*</span></label>
                             <input type="number" id="downPayment" name="downPayment"
                                 class="w-full border rounded p-2 text-sm text-right font-bold text-orange-600">
+                            <p class="text-xs text-red-500 mt-1">* ให้กรอกเงินดาวน์ตามที่ไฟแนนซ์อนุมัติ</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div><label class="block text-xs text-gray-500">ชื่อลูกค้า <span
+                                        class="text-red-500">*</span></label><input type="text" id="customerName"
+                                    name="customerName" class="w-full border rounded p-2 text-sm" required></div>
+                            <div><label class="block text-xs text-gray-500">เบอร์โทรลูกค้า <span
+                                        class="text-red-500">*</span></label><input type="text" id="customerPhone"
+                                    name="customerPhone" class="w-full border rounded p-2 text-sm" required></div>
                         </div>
 
                         <div class="mb-3" id="shopNameDiv">
@@ -443,6 +453,14 @@
                         <span class="label">สาขา:</span>
                         <span class="value" id="rec_branch">-</span>
                     </div>
+                    <div class="receipt-text-row">
+                        <span class="label">ชื่อลูกค้า:</span>
+                        <span class="value" id="rec_customerName">-</span>
+                    </div>
+                    <div class="receipt-text-row">
+                        <span class="label">เบอร์โทรลูกค้า:</span>
+                        <span class="value" id="rec_customerPhone">-</span>
+                    </div>
                 </div>
 
                 <div class="receipt-spec-box text-gray-700">
@@ -504,6 +522,14 @@
                         <div class="receipt-text-row">
                             <span class="label">พนักงาน:</span>
                             <span class="value" id="d_seller"></span>
+                        </div>
+                        <div class="receipt-text-row">
+                            <span class="label">ลูกค้า:</span>
+                            <span class="value" id="d_customerName"></span>
+                        </div>
+                        <div class="receipt-text-row">
+                            <span class="label">เบอร์โทร:</span>
+                            <span class="value" id="d_customerPhone"></span>
                         </div>
                     </div>
 
@@ -598,6 +624,13 @@
                             <label class="text-xs text-gray-500">เงินดาวน์</label>
                             <input type="number" id="e_downPayment"
                                 class="w-full border rounded p-2 font-bold text-orange-600 text-right">
+                            <p class="text-xs text-red-500 mt-1">* ให้กรอกเงินดาวน์ตามที่ไฟแนนซ์อนุมัติ</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="text-xs text-gray-500">ชื่อลูกค้า</label><input type="text" id="e_customerName"
+                                    class="w-full border rounded p-2"></div>
+                            <div><label class="text-xs text-gray-500">เบอร์โทรลูกค้า</label><input type="text" id="e_customerPhone"
+                                    class="w-full border rounded p-2"></div>
                         </div>
                         <div><label class="text-xs text-gray-500">ร้านรับ</label><input type="text" id="e_shopName"
                                 class="w-full border rounded p-2"></div>
@@ -852,13 +885,16 @@
                 imei: form.imei.value,
                 saleType: form.saleType.value,
                 price: form.price.value,
-                downPayment: form.downPayment.value || 0
+                downPayment: form.downPayment.value || 0,
+                customerName: form.customerName.value || '',
+                customerPhone: form.customerPhone.value || ''
             };
 
             const formData = {
                 seller: currentUser.name, brand: form.brand.value, hand: form.hand.value, model: form.model.value,
                 ram: form.ram.value, capacity: form.capacity.value, color: form.color.value, imei: form.imei.value,
-                saleType: form.saleType.value, shopName: form.shopName.value, price: form.price.value, saleDate: form.saleDate.value, downPayment: form.downPayment.value || 0
+                saleType: form.saleType.value, shopName: form.shopName.value, price: form.price.value, saleDate: form.saleDate.value, downPayment: form.downPayment.value || 0,
+                customerName: form.customerName.value || '', customerPhone: form.customerPhone.value || ''
             };
             const file = document.getElementById('receiptFile').files[0];
             const callback = (res) => {
@@ -890,6 +926,8 @@
             document.getElementById('rec_date').innerText = data.date;
             document.getElementById('rec_seller').innerText = data.seller;
             document.getElementById('rec_branch').innerText = data.branch;
+            document.getElementById('rec_customerName').innerText = data.customerName;
+            document.getElementById('rec_customerPhone').innerText = data.customerPhone;
             document.getElementById('rec_product_name').innerText = data.productName;
             document.getElementById('rec_spec').innerText = data.spec;
             document.getElementById('rec_imei').innerText = data.imei;
@@ -920,6 +958,8 @@
             const item = currentHistoryData[index]; if (!item) return;
             document.getElementById('d_date').innerText = item.date;
             document.getElementById('d_seller').innerText = item.seller;
+            document.getElementById('d_customerName').innerText = item.customerName || '-';
+            document.getElementById('d_customerPhone').innerText = item.customerPhone || '-';
             document.getElementById('d_brand').innerText = item.brand;
             document.getElementById('d_model').innerText = item.model;
             document.getElementById('d_capacity').innerText = `${item.ram || '-'} / ${item.capacity || '-'}`;
@@ -957,6 +997,8 @@
             document.getElementById('e_ram').value = item.ram; document.getElementById('e_capacity').value = item.capacity; document.getElementById('e_color').value = item.color;
             document.getElementById('e_imei').value = item.imei; document.getElementById('e_saleType').value = item.saleType; document.getElementById('e_price').value = item.price; document.getElementById('e_shopName').value = item.shopName;
             document.getElementById('e_downPayment').value = item.downPayment || '';
+            document.getElementById('e_customerName').value = item.customerName || '';
+            document.getElementById('e_customerPhone').value = item.customerPhone || '';
             checkSaleType('e_saleType', 'e_downPaymentDiv', 'e_downPayment');
             document.getElementById('viewMode').classList.add('hidden'); document.getElementById('editMode').classList.remove('hidden');
         }
@@ -971,7 +1013,8 @@
                 rowIndex: document.getElementById('e_rowIndex').value, editor: currentUser.name, saleDate: document.getElementById('e_date').value,
                 brand: document.getElementById('e_brand').value, hand: document.getElementById('e_hand').value, model: document.getElementById('e_model').value,
                 ram: document.getElementById('e_ram').value, capacity: document.getElementById('e_capacity').value, color: document.getElementById('e_color').value,
-                imei: document.getElementById('e_imei').value, saleType: document.getElementById('e_saleType').value, price: document.getElementById('e_price').value, shopName: document.getElementById('e_shopName').value, downPayment: document.getElementById('e_downPayment').value || 0
+                imei: document.getElementById('e_imei').value, saleType: document.getElementById('e_saleType').value, price: document.getElementById('e_price').value, shopName: document.getElementById('e_shopName').value, downPayment: document.getElementById('e_downPayment').value || 0,
+                customerName: document.getElementById('e_customerName').value || '', customerPhone: document.getElementById('e_customerPhone').value || ''
             };
             Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
