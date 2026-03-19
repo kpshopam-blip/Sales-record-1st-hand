@@ -43,6 +43,10 @@
             display: none !important;
         }
 
+        .safe-area-pb {
+            padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+        }
+
         #scanner-overlay {
             position: fixed;
             top: 0;
@@ -160,7 +164,7 @@
     </style>
 </head>
 
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="fixed inset-0 flex flex-col overflow-hidden bg-[#f3f4f6]">
 
     <div id="scanner-overlay">
         <div class="text-white mb-2 text-lg font-bold">สแกน IMEI/Barcode</div>
